@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Virtual environments
+venv/
+laptop/venv/
+.venv/
+
+# Hailo model files (large binaries; symlinked from /usr/share/hailo-models on the Pi)
+pi/models/*.hef
+
+# OS / editor
+.DS_Store
+*.swp
