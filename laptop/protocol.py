@@ -4,8 +4,11 @@ Tiny length-prefixed frame protocol shared by server (Pi) and client (laptop).
 Wire format per message:
     [4 bytes: json_len big-endian][json bytes][4 bytes: jpeg_len][jpeg bytes]
 
-json payload = {"fps": float, "counts": {label: n}, "detections": [
-    {"label","score","box":[x1,y1,x2,y2],"center":[cx,cy]}, ...]}
+json payload = {"fps": float, "camera_id": int, "camera_name": str,
+    "annotated": bool, "counts": {label: n}, "detections": [
+    {"label","cls_id","score","box":[x1,y1,x2,y2],"center":[cx,cy]}, ...]}
+camera_id / camera_name / annotated / cls_id are OPTIONAL additive fields
+(older senders omit them; receivers must tolerate their absence).
 """
 import json
 import struct

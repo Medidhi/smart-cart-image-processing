@@ -1,3 +1,14 @@
+# Core viewer (client.py and app.py with Pi streams + --embedder hist)
 PyQt6>=6.6
 opencv-python>=4.8
 numpy>=1.24
+
+# Local-mode detection + deep re-ID for app.py. A torch-free machine that only
+# views Pi streams can COMMENT THESE OUT and run app.py --embedder hist.
+# Pins = verified cp314 macOS arm64 wheels; adjust per platform if needed.
+ultralytics>=8.4
+torch==2.12.1
+torchvision==0.27.1
+
+# Optimal assignment for tracker + matcher (greedy fallback if absent)
+lap>=0.5

@@ -23,6 +23,7 @@ class Detection:
     y1: int
     x2: int
     y2: int
+    cls_id: int = -1
 
     @property
     def center(self):
@@ -30,7 +31,12 @@ class Detection:
 
 
 class HailoObjectDetector:
-    def __init__(self, hef_path="models/yolov8s_h8.hef", score_thresh=0.4):
+    def __init__(self, hef_path="models/yolov8s_h8.hef", score_thresh=0.4,
+                 labels=None):
+        """labels: index-aligned class-name list matching the .hef NMS output.
+        Defaults to the 80 COCO names; pass grocery_labels.GROCERY_NAMES for
+        the custom 43-class grocery model."""
+        self.labels = labels if labels is not None else COCO_CLASSES
         self.score_thresh = score_thresh
         self.hef = HEF(hef_path)
         self.target = VDevice()
@@ -70,8 +76,14 @@ class HailoObjectDetector:
             with self.network_group.activate(self.ng_params):
                 results = pipe.infer({self.input_name: batch})
 
-        # HAILO_NMS_BY_CLASS: results[out] -> array(batch) of list[80] of (n,5) arrays
+        # HAILO_NMS_BY_CLASS: results[out] -> array(batch) of list[N] of (n,5)
+        # arrays, one entry per class in the compiled .hef
         raw = results[self.output_name][0]
+        if len(raw) != len(self.labels) and not getattr(self, "_warned", False):
+            self._warned = True
+            print(f"[detector] WARNING: .hef emits {len(raw)} classes but "
+                  f"{len(self.labels)} labels loaded — wrong --labels choice "
+                  f"or class-index invariant broken (training/HAILO.md)")
         dets = []
         for cls_id, boxes in enumerate(raw):
             if boxes is None or len(boxes) == 0:
@@ -86,10 +98,11 @@ class HailoObjectDetector:
                 x2 = (xmax * self.in_w - pad_x) / scale
                 y2 = (ymax * self.in_h - pad_y) / scale
                 dets.append(Detection(
-                    label=COCO_CLASSES[cls_id] if cls_id < len(COCO_CLASSES) else str(cls_id),
+                    label=self.labels[cls_id] if cls_id < len(self.labels) else str(cls_id),
                     score=float(score),
                     x1=max(0, int(x1)), y1=max(0, int(y1)),
                     x2=min(orig_w - 1, int(x2)), y2=min(orig_h - 1, int(y2)),
+                    cls_id=cls_id,
                 ))
         return dets
 

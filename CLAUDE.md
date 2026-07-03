@@ -12,6 +12,9 @@ and streams them over TCP to a native PyQt6 viewer on a laptop.
 ```
 [Pi AI Camera] → Picamera2 → Hailo-8 YOLOv8 → grocery filter → annotate/JPEG
       → TCP (pi/server.py :8765) → laptop/client.py (PyQt6): video + item table
+
+Multi-camera (N Pis, or local videos/webcams for testing) → laptop/app.py:
+      per-camera tracking + click-to-select + cross-camera re-identification
 ```
 
 ## Three independent areas (each stands alone, own deps)
@@ -19,8 +22,8 @@ and streams them over TCP to a native PyQt6 viewer on a laptop.
 | Dir         | Runs on            | Role | Details |
 |-------------|--------------------|------|---------|
 | `pi/`       | Raspberry Pi 5     | capture → Hailo detect → filter → annotate → TCP stream | `pi/CLAUDE.md` |
-| `laptop/`   | your laptop        | PyQt6 viewer that receives the stream | `laptop/CLAUDE.md` |
-| `training/` | laptop/workstation | fine-tune a custom YOLO model → export toward `.hef` | `training/CLAUDE.md` |
+| `laptop/`   | your laptop        | `client.py` single-cam viewer; `app.py` multi-cam select/track/re-ID | `laptop/CLAUDE.md` |
+| `training/` | laptop/workstation | fine-tune a custom YOLO model → export toward `.hef` (`HAILO.md`) | `training/CLAUDE.md` |
 
 `deploy.sh` rsyncs **only** `pi/` to `~/grocery-detect` on the Pi and symlinks the
 Hailo `.hef` models from `/usr/share/hailo-models`.
@@ -41,9 +44,11 @@ Hailo `.hef` models from `/usr/share/hailo-models`.
 ## Cross-cutting invariant — class index alignment
 
 The class list is a contract across the whole pipeline and must stay index-aligned:
-`training/data.yaml names` → compiled `.hef` output order → `pi/coco_labels.py` →
-`pi/grocery.py` filter set. Reordering any one of these silently breaks detections.
-If you change classes, update all of them together.
+`training/data.yaml names` → compiled `.hef` output order → the Pi labels file
+(`pi/coco_labels.py` for the stock model, `pi/grocery_labels.py` for the custom
+43-class model) → `pi/grocery.py` filter/category sets. Reordering any one of these
+silently breaks detections. If you change classes, update all of them together
+(and recompile the `.hef` — see `training/HAILO.md`).
 
 ## What is NOT in git
 

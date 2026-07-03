@@ -11,6 +11,12 @@ Usage:
   python3 server.py --source webcam       # UVC webcam instead (off-Pi testing)
   python3 server.py --hef models/yolov8m_h10.hef --thresh 0.35
   python3 server.py --preview             # also show a local window on the Pi
+
+Multi-camera setup (one Pi per camera, laptop/app.py as the viewer):
+  python3 server.py --hef models/grocery_yolov8n.hef --labels grocery \\
+      --camera-id 0 --camera-name front --no-annotate
+--no-annotate streams the CLEAN frame (the laptop draws boxes itself and cuts
+re-ID appearance crops, which drawn boxes would contaminate).
 """
 import argparse
 import socket
@@ -79,10 +85,26 @@ def main():
     ap.add_argument("--port", type=int, default=8765)
     ap.add_argument("--jpeg-quality", type=int, default=70)
     ap.add_argument("--preview", action="store_true")
+    ap.add_argument("--camera-id", type=int, default=0,
+                    help="stable id for this camera in a multi-camera setup")
+    ap.add_argument("--camera-name", default=None,
+                    help="human name for this camera (default camN)")
+    ap.add_argument("--labels", choices=["coco", "grocery"], default="coco",
+                    help="class-name list matching the .hef: coco (stock 80) "
+                         "or grocery (custom 43, training/HAILO.md)")
+    ap.add_argument("--no-annotate", action="store_true",
+                    help="stream the clean frame; the laptop viewer draws "
+                         "boxes and needs clean pixels for re-ID crops")
     args = ap.parse_args()
+    camera_name = args.camera_name or f"cam{args.camera_id}"
 
-    print(f"[server] loading model {args.hef} ...")
-    det = HailoObjectDetector(args.hef, score_thresh=args.thresh)
+    labels = None
+    if args.labels == "grocery":
+        from grocery_labels import GROCERY_NAMES
+        labels = GROCERY_NAMES
+    print(f"[server] loading model {args.hef} (labels={args.labels}) ...")
+    det = HailoObjectDetector(args.hef, score_thresh=args.thresh,
+                              labels=labels)
     src = make_source(args.source, index=args.index)
     print(f"[server] camera={args.source} ready")
 
@@ -106,19 +128,29 @@ def main():
             dets = filter_grocery(det.detect(frame))
             fps = 0.9 * fps + 0.1 * (1.0 / max(1e-3, time.time() - t0))
 
-            annotated = draw(frame.copy(), dets, color_for=color_for)
             counts = Counter(d.label for d in dets)
-            cv2.putText(annotated, f"{fps:4.1f} FPS  {len(dets)} items",
-                        (8, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+            annotated = None
+            if not args.no_annotate or args.preview:
+                annotated = draw(frame.copy(), dets, color_for=color_for)
+                cv2.putText(annotated, f"{fps:4.1f} FPS  {len(dets)} items",
+                            (8, 24), cv2.FONT_HERSHEY_SIMPLEX, 0.7,
+                            (0, 255, 255), 2)
 
-            ok, buf = cv2.imencode(".jpg", annotated, enc)
+            # --no-annotate streams the CLEAN frame: the laptop viewer draws
+            # boxes itself and cuts re-ID crops from unmodified pixels.
+            out = frame if args.no_annotate else annotated
+            ok, buf = cv2.imencode(".jpg", out, enc)
             if not ok:
                 continue
             meta = {
                 "fps": round(fps, 1),
+                "camera_id": args.camera_id,
+                "camera_name": camera_name,
+                "annotated": not args.no_annotate,
                 "counts": dict(counts),
                 "detections": [
-                    {"label": d.label, "score": round(d.score, 3),
+                    {"label": d.label, "cls_id": d.cls_id,
+                     "score": round(d.score, 3),
                      "box": [d.x1, d.y1, d.x2, d.y2], "center": list(d.center)}
                     for d in dets
                 ],

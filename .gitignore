@@ -11,12 +11,23 @@ laptop/venv/
 # Hailo model files (large binaries; symlinked from /usr/share/hailo-models on the Pi)
 pi/models/*.hef
 
+# Generated demo videos for the multi-camera viewer (laptop/make_demo.py)
+laptop/demo/
+
 # Training artifacts (large / regenerable)
+# NOTE: gitignore has no inline comments — a '#' only starts a comment at the
+# beginning of a line, so keep these patterns comment-free.
 training/venv/
-training/runs/          # Ultralytics training outputs (weights, plots, metrics)
-training/datasets/      # image/label data — keep out of git
-training/*.pt           # pretrained + trained checkpoints
-training/*.onnx         # exported graphs
+# Ultralytics training outputs (weights, plots, metrics)
+training/runs/
+# image/label data — keep out of git
+training/datasets/
+# pretrained + trained checkpoints
+training/*.pt
+# exported graphs
+training/*.onnx
+# generated Hailo calibration images (training/hailo/export_calib.py)
+training/hailo/calib/
 
 # OS / editor
 .DS_Store

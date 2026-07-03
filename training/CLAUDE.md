@@ -12,6 +12,8 @@ and the full step-by-step + checklist in `training/README.md`.
 | `prepare_grocery_dataset.py` | Downloads the GroceryStore dataset → converts to YOLO format under `datasets/grocery/` (full-frame weak boxes, coarse classes) and regenerates `data.yaml`. Quickstart data. |
 | `train_grocery.ipynb` | Interactive notebook mirroring the CLI flow; reuses `config.yaml`/`data.yaml`/`MODELS`. |
 | `export.py` | `YOLO(...).export(format="onnx", opset=11, imgsz=640, nms=False)` → `best.onnx`, ready for the Hailo DFC (compiled separately on Hailo's x86 SDK). |
+| `hailo/export_calib.py` | Dumps ~300 letterboxed 640×640 calibration JPEGs (from `datasets/grocery` or your own frames) for DFC quantization. |
+| `HAILO.md` | Full `best.onnx` → `grocery_yolov8n.hef` walkthrough (`hailomz compile … --classes 43`), deploy steps, and the class-index invariant. |
 | `config.yaml` | Training profile. **`model:` is the one-line architecture switch.** Hyperparams, device, output dir. |
 | `data.yaml` | Ultralytics dataset spec: `path`/`train`/`val`/`test` + ordered `names`. |
 | `requirements.txt` | `ultralytics`, `onnx`, `onnxslim` (own venv, separate from `pi/`/`laptop/`). |
@@ -42,8 +44,9 @@ and the full step-by-step + checklist in `training/README.md`.
 
 `data.yaml names` defines each `class_id` and is a contract: (1) it must stay fixed once
 labeling starts (reordering corrupts every label file), and (2) after compilation it must
-match the Pi's label file/order (`pi/coco_labels.py`) and `pi/grocery.py`. Change all
-together. See root `CLAUDE.md`.
+match the Pi's label file/order (`pi/grocery_labels.py` for the custom model,
+`pi/coco_labels.py` for stock COCO) and `pi/grocery.py`'s category sets. Change all
+together and recompile the `.hef` (`HAILO.md`). See root `CLAUDE.md`.
 
 ## Not in git
 

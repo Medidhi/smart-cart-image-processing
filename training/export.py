@@ -48,11 +48,13 @@ def main():
         nms=False,
     )
     print(f"\n[export] ONNX written: {out}")
-    print("[export] next (on the Hailo x86 SDK, not this machine):")
-    print("         hailomz compile --ckpt <this.onnx> --hw-arch hailo8 \\")
-    print("             --calib-path <images/> --classes <N> --yaml <cfg>")
-    print("[export] then copy the resulting .hef into pi/models/ and run:")
-    print("         python3 server.py --hef models/<your_model>.hef")
+    print("[export] next: build a calibration set, then compile on the Hailo")
+    print("         x86 SDK (full walkthrough in training/HAILO.md):")
+    print("         python3 hailo/export_calib.py --from-dataset")
+    print("         hailomz compile yolov8n --ckpt <this.onnx> --hw-arch hailo8 \\")
+    print("             --calib-path hailo/calib/ --classes 43 --performance")
+    print("[export] then copy the .hef into pi/models/, ./deploy.sh, and run:")
+    print("         python3 server.py --hef models/grocery_yolov8n.hef --labels grocery")
 
 
 if __name__ == "__main__":

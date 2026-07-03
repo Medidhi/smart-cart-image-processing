@@ -24,11 +24,16 @@ echo "[deploy] syncing pi/ -> $PI_HOST:$DEST"
   "$(dirname "$0")/pi/" "$PI_HOST:$DEST/"
 
 # Link the pre-installed Hailo model zoo so models/ resolves on the Pi.
+# A custom-compiled .hef (e.g. grocery_yolov8n.hef, see training/HAILO.md)
+# dropped into local pi/models/ is carried up by the rsync above; the guard
+# below never overwrites a real file with a symlink.
 "${SSH_PREFIX[@]}" ssh -o StrictHostKeyChecking=no "$PI_HOST" '
   cd ~/grocery-detect &&
   mkdir -p models &&
   for m in yolov8s_h8 yolov8m_h10 yolov11m_h10; do
-    [ -f /usr/share/hailo-models/$m.hef ] && ln -sf /usr/share/hailo-models/$m.hef models/$m.hef;
+    if [ -f /usr/share/hailo-models/$m.hef ] && { [ ! -e models/$m.hef ] || [ -L models/$m.hef ]; }; then
+      ln -sf /usr/share/hailo-models/$m.hef models/$m.hef;
+    fi;
   done &&
   echo "[deploy] models: $(ls models)"
 '

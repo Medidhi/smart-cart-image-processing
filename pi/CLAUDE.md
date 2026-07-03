@@ -8,11 +8,12 @@ project-wide conventions.
 
 | File | Role |
 |------|------|
-| `server.py` | Entry point. Capture → detect → `filter_grocery` → annotate → JPEG → TCP broadcast to all connected clients. argparse: `--source {picamera,webcam}`, `--hef`, `--thresh`, `--host/--port`, `--jpeg-quality`, `--preview`. |
-| `detector.py` | `HailoObjectDetector`: loads a `.hef`, letterboxes to 640×640, runs YOLOv8, decodes on-chip **NMS-by-class** output into `Detection` dataclasses in original-frame pixels. Also `draw()`. |
+| `server.py` | Entry point. Capture → detect → `filter_grocery` → annotate → JPEG → TCP broadcast to all connected clients. argparse: `--source {picamera,webcam}`, `--hef`, `--thresh`, `--host/--port`, `--jpeg-quality`, `--preview`, `--camera-id/--camera-name` (multi-cam identity), `--labels {coco,grocery}`, `--no-annotate` (stream the CLEAN frame for laptop/app.py — it draws boxes itself and cuts re-ID crops from clean pixels). |
+| `detector.py` | `HailoObjectDetector(hef, score_thresh, labels=None)`: loads a `.hef`, letterboxes to 640×640, runs YOLOv8, decodes on-chip **NMS-by-class** output into `Detection` dataclasses (now with `cls_id`) in original-frame pixels. `labels` defaults to COCO; pass `GROCERY_NAMES` for the custom model. Also `draw()`. |
 | `camera.py` | Frame sources. `Picamera2Source` (AI Camera, lazy-imports picamera2) and `WebcamSource` (UVC, for off-Pi testing); `make_source(kind, ...)`. `.read()` returns BGR uint8 or None. |
-| `grocery.py` | Grocery subset of COCO + `is_grocery`, `filter_grocery`, `color_for`/`category_of` (stable per-category BGR colors). |
-| `coco_labels.py` | `COCO_CLASSES`, 80 names index-aligned to the `.hef` NMS output. |
+| `grocery.py` | Grocery classes for BOTH models: COCO subset + the custom 43 (all grocery); `is_grocery`, `filter_grocery`, `color_for`/`category_of` (stable per-category BGR colors, incl. fruit/dairy/vegetable). |
+| `coco_labels.py` | `COCO_CLASSES`, 80 names index-aligned to the stock `.hef` NMS output. |
+| `grocery_labels.py` | `GROCERY_NAMES`, 43 names index-aligned to `training/data.yaml` and the custom grocery `.hef` (see `training/HAILO.md`). Regenerate together with data.yaml. |
 | `protocol.py` | Length-prefixed TCP frame protocol (`send_frame`/`recv_frame`). **Duplicate of `laptop/protocol.py` — keep in sync.** |
 
 ## Runtime environment (important)
@@ -31,8 +32,11 @@ project-wide conventions.
 - Output decode assumes **HAILO_NMS_BY_CLASS**: `results[out][0]` is a length-80 list of
   `(n,5)` arrays `[ymin,xmin,ymax,xmax,score]` normalized to the 640 canvas. A custom
   model must compile to this same format so nothing here changes.
-- `COCO_CLASSES` order == the `.hef` class order. For a custom model, swap this labels
-  file and `grocery.py`'s class set together (see root `CLAUDE.md` invariant).
+- The labels list passed to the detector must be index-aligned with the `.hef` class
+  order: `COCO_CLASSES` for the stock models, `GROCERY_NAMES` for the custom grocery
+  model (selected at runtime via `server.py --labels {coco,grocery}`). The detector
+  warns once if the `.hef` class count and the labels list disagree (see root
+  `CLAUDE.md` invariant and `training/HAILO.md`).
 
 ## Editing notes
 
