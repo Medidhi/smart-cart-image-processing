@@ -1,0 +1,27 @@
+# Training profile. Every value here can be overridden on the command line
+# (e.g. `python3 train.py --model yolov8s --epochs 50`).
+
+# ── Model ────────────────────────────────────────────────────────────────────
+# Change this ONE line to switch architectures. Must be a key in MODELS (train.py).
+# Built in: yolov8n, yolov8s, yolov8m, yolov8l, yolov8x  (+ yolo11* — see train.py).
+# Start with yolov8n (fast, smallest .hef); move to yolov8s for higher accuracy.
+model: yolov8n
+
+# ── Data ─────────────────────────────────────────────────────────────────────
+data: data.yaml          # resolved relative to this training/ directory
+
+# ── Core hyperparameters ──────────────────────────────────────────────────────
+epochs: 100
+imgsz: 640               # keep 640 to match the Hailo YOLOv8 reference on the Pi
+batch: 16                # -1 = auto-pick to ~60% VRAM; lower to 8/4 if you OOM
+patience: 25             # early-stop after N epochs with no val improvement
+seed: 0                  # set for reproducible runs
+
+# ── Hardware ──────────────────────────────────────────────────────────────────
+# "" = auto-detect. "0" = first CUDA GPU, "0,1" = multi-GPU, "cpu", "mps" = Apple Silicon.
+device: ""
+workers: 8               # dataloader workers; drop to 2-4 on a laptop
+
+# ── Output ────────────────────────────────────────────────────────────────────
+project: runs            # results go to runs/<name>/ (gitignored)
+name: grocery            # auto-suffixed grocery2, grocery3, ... on reruns

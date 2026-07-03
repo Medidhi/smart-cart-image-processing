@@ -1,0 +1,37 @@
+# Ultralytics dataset spec for grocery detection.
+#
+# Directory layout expected under `path` (YOLO detection format):
+#   datasets/grocery/
+#     images/train/*.jpg      labels/train/*.txt
+#     images/val/*.jpg        labels/val/*.txt
+#     images/test/*.jpg       labels/test/*.txt   (optional)
+# Each label .txt has one line per box:  <class_id> <x_center> <y_center> <w> <h>
+# all normalized 0-1. class_id indexes into `names` below.
+#
+# `path` is resolved relative to this file's directory (see train.py), so a relative
+# path here works no matter where you launch training from.
+
+path: datasets/grocery
+train: images/train
+val: images/val
+test: images/test        # optional; ignored if the folder is absent
+
+# Class list. The ORDER defines each class_id and must stay stable once you start
+# labeling — reordering silently corrupts every label file. This ordering also has to
+# match the labels file used on the Pi after you compile to .hef (see pi/grocery.py /
+# pi/coco_labels.py). Edit this list to match your dataset.
+names:
+  0: apple
+  1: banana
+  2: orange
+  3: tomato
+  4: potato
+  5: onion
+  6: pepper
+  7: carrot
+  8: broccoli
+  9: lettuce
+  10: bottle
+  11: can
+  12: box
+  13: bag

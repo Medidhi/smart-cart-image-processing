@@ -11,6 +11,13 @@ laptop/venv/
 # Hailo model files (large binaries; symlinked from /usr/share/hailo-models on the Pi)
 pi/models/*.hef
 
+# Training artifacts (large / regenerable)
+training/venv/
+training/runs/          # Ultralytics training outputs (weights, plots, metrics)
+training/datasets/      # image/label data — keep out of git
+training/*.pt           # pretrained + trained checkpoints
+training/*.onnx         # exported graphs
+
 # OS / editor
 .DS_Store
 *.swp

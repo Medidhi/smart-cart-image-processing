@@ -59,7 +59,8 @@ the table fills with item names, counts, and confidence. Expect ~15–30 FPS on 
 
 ## Phase 2 — custom grocery model (broader coverage)
 COCO misses most real grocery items (potato, tomato, onion, peppers, leafy greens,
-cans, boxes, bagged goods). To go further:
+cans, boxes, bagged goods). The `training/` module implements this — see
+`training/README.md`. To go further:
 1. **Dataset:** Freiburg Groceries, Fruits-360, or RPC checkout; or label your own
    with Roboflow.
 2. **Train:** fine-tune `yolov8s`/`yolov8n` (Ultralytics) on the grocery classes.

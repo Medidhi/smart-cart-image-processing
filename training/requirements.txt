@@ -1,0 +1,5 @@
+# Training-only deps. Keep separate from pi/ (Hailo runtime) and laptop/ (PyQt viewer).
+# Install into a dedicated venv:  python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
+ultralytics>=8.2      # YOLOv8/YOLO11 training, val, export (pulls in torch, torchvision, opencv, pyyaml)
+onnx>=1.15            # ONNX graph handling for the Hailo export step
+onnxslim>=0.1.31      # graph simplification during `yolo export format=onnx`
