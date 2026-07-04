@@ -68,16 +68,58 @@ Click the gliding item: cyan ★ SELECTED; the other pane shows a cyan MATCH
 ring during the handoff, and the "teleporting" clone at the end gets the
 orange NEW OBJ tag.
 
-### Production — two Pi 5 + Hailo units, same app
-Compile the custom model to `.hef` first (`training/HAILO.md`), then on each Pi:
+### On the Raspberry Pi(s) — live cameras
+
+First deploy the `pi/` code (once, and after any change):
 ```bash
-python3 server.py --hef models/grocery_yolov8n.hef --labels grocery \
-    --no-annotate --camera-id 0 --camera-name front     # 1 on the other Pi
+PI_HOST=admin@raspberrypi.local ./deploy.sh
 ```
-and on the laptop:
+
+Each camera is one `server.py` process. Runs stock **COCO** by default; add
+`--hef models/grocery_yolov8n.hef --labels grocery` once you've compiled the
+custom model (`training/HAILO.md`). `--no-annotate` streams a clean frame
+(the laptop draws boxes and needs clean pixels for re-ID crops).
+
+**Two cameras on ONE Pi 5** (both CSI ports, sharing the single Hailo via the
+`hailort` service — note `--shared-device` and different `--index`/`--port`).
+Run each in its **own** ssh call:
 ```bash
-python3 app.py --source tcp://<pi-A>:8765 --name front \
-               --source tcp://<pi-B>:8765 --name side
+# camera 0 -> :8765 ("front")
+ssh admin@raspberrypi.local 'cd ~/grocery-detect && setsid nohup python3 -u server.py \
+  --index 0 --port 8765 --camera-id 0 --camera-name front --no-annotate --shared-device \
+  --max-fps 6 --width 640 --height 360 --jpeg-quality 50 > serverA.log 2>&1 </dev/null &'
+
+# camera 1 -> :8766 ("side")
+ssh admin@raspberrypi.local 'cd ~/grocery-detect && setsid nohup python3 -u server.py \
+  --index 1 --port 8766 --camera-id 1 --camera-name side  --no-annotate --shared-device \
+  --max-fps 6 --width 640 --height 360 --jpeg-quality 50 > serverB.log 2>&1 </dev/null &'
+
+ssh admin@raspberrypi.local 'ss -tln | grep -E "8765|8766"'   # verify listening
+ssh admin@raspberrypi.local 'pkill -f "[s]erver.py"'          # stop both
+```
+
+**Two separate Pi 5 + Hailo units** (one camera each — no `--shared-device`):
+```bash
+# on Pi A:
+python3 server.py --index 0 --port 8765 --camera-id 0 --camera-name front --no-annotate
+# on Pi B:
+python3 server.py --index 0 --port 8765 --camera-id 1 --camera-name side  --no-annotate
+```
+
+> **Power:** a Pi 5 + Hailo HAT + two cameras needs the **official 27 W PSU and
+> a USB-C-to-C cable**. On an underpowered supply the Pi browns out and reboots
+> when inference runs; the `--max-fps 6 --width 640 --height 360 --jpeg-quality 50`
+> flags above are a low-power fallback (also set `usb_max_current_enable=1` in
+> `/boot/firmware/config.txt`). With proper power, drop those flags or raise them
+> (e.g. `--max-fps 15 --width 1280 --height 720 --jpeg-quality 70`).
+
+### On the laptop — the viewer
+```bash
+cd laptop && source venv/bin/activate
+# two cameras on one Pi:
+python3 app.py --source tcp://raspberrypi.local:8765 --name front \
+               --source tcp://raspberrypi.local:8766 --name side --device mps
+# two separate Pis: point each --source at that Pi's host:8765
 ```
 
 ## Files

@@ -9,9 +9,9 @@ import cv2
 
 
 class Picamera2Source:
-    def __init__(self, width=1280, height=720):
+    def __init__(self, width=1280, height=720, camera_num=0):
         from picamera2 import Picamera2  # imported lazily; only present on the Pi
-        self.picam2 = Picamera2()
+        self.picam2 = Picamera2(camera_num)  # Pi 5 has two CSI ports (0 and 1)
         cfg = self.picam2.create_preview_configuration(
             main={"format": "RGB888", "size": (width, height)})
         self.picam2.configure(cfg)
@@ -44,8 +44,9 @@ class WebcamSource:
 
 
 def make_source(kind="picamera", index=0, width=1280, height=720):
+    """index selects the CSI camera number (picamera) or /dev/videoN (webcam)."""
     if kind == "picamera":
-        return Picamera2Source(width, height)
+        return Picamera2Source(width, height, camera_num=index)
     if kind == "webcam":
         return WebcamSource(index)
     raise ValueError(kind)

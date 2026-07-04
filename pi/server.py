@@ -95,6 +95,16 @@ def main():
     ap.add_argument("--no-annotate", action="store_true",
                     help="stream the clean frame; the laptop viewer draws "
                          "boxes and needs clean pixels for re-ID crops")
+    ap.add_argument("--max-fps", type=float, default=0.0,
+                    help="cap the capture/detect loop (0 = uncapped). Lower "
+                         "this on a weak power supply: sustained full-speed "
+                         "detect+encode can brown-out a Pi 5 + Hailo HAT")
+    ap.add_argument("--width", type=int, default=1280,
+                    help="capture width (lower = less ISP/encode/TX power)")
+    ap.add_argument("--height", type=int, default=720)
+    ap.add_argument("--shared-device", action="store_true",
+                    help="share the Hailo across processes via the hailort "
+                         "service — needed to run one server per CSI camera")
     args = ap.parse_args()
     camera_name = args.camera_name or f"cam{args.camera_id}"
 
@@ -104,8 +114,9 @@ def main():
         labels = GROCERY_NAMES
     print(f"[server] loading model {args.hef} (labels={args.labels}) ...")
     det = HailoObjectDetector(args.hef, score_thresh=args.thresh,
-                              labels=labels)
-    src = make_source(args.source, index=args.index)
+                              labels=labels, shared=args.shared_device)
+    src = make_source(args.source, index=args.index,
+                      width=args.width, height=args.height)
     print(f"[server] camera={args.source} ready")
 
     server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -118,8 +129,18 @@ def main():
 
     enc = [int(cv2.IMWRITE_JPEG_QUALITY), args.jpeg_quality]
     fps = 0.0
+    interval = 1.0 / args.max_fps if args.max_fps > 0 else 0.0
+    next_t = time.monotonic()
     try:
         while True:
+            if interval:                     # pace the loop (see --max-fps)
+                now = time.monotonic()
+                if now < next_t:
+                    time.sleep(next_t - now)
+                    now = time.monotonic()
+                next_t += interval
+                if now - next_t > 1.0:       # fell far behind; resync
+                    next_t = now + interval
             frame = src.read()
             if frame is None:
                 time.sleep(0.01)

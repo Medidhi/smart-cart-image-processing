@@ -11,6 +11,7 @@ import cv2
 from hailo_platform import (
     HEF, VDevice, HailoStreamInterface, ConfigureParams,
     InputVStreamParams, OutputVStreamParams, InferVStreams, FormatType,
+    HailoSchedulingAlgorithm,
 )
 from coco_labels import COCO_CLASSES
 
@@ -32,14 +33,27 @@ class Detection:
 
 class HailoObjectDetector:
     def __init__(self, hef_path="models/yolov8s_h8.hef", score_thresh=0.4,
-                 labels=None):
+                 labels=None, shared=False):
         """labels: index-aligned class-name list matching the .hef NMS output.
         Defaults to the 80 COCO names; pass grocery_labels.GROCERY_NAMES for
-        the custom 43-class grocery model."""
+        the custom 43-class grocery model.
+        shared: open the Hailo through the hailort multi-process service so
+        several processes (e.g. one server per CSI camera) can share the one
+        device. Requires `systemctl start hailort`. The service scheduler
+        activates network groups itself, so detect() skips manual activate."""
         self.labels = labels if labels is not None else COCO_CLASSES
         self.score_thresh = score_thresh
+        self.shared = shared
         self.hef = HEF(hef_path)
-        self.target = VDevice()
+        if shared:
+            params = VDevice.create_params()
+            # the multi-process service requires the HailoRT scheduler
+            params.scheduling_algorithm = HailoSchedulingAlgorithm.ROUND_ROBIN
+            params.multi_process_service = True
+            params.group_id = "SHARED"
+            self.target = VDevice(params)
+        else:
+            self.target = VDevice()
         cfg = ConfigureParams.create_from_hef(
             self.hef, interface=HailoStreamInterface.PCIe)
         self.network_group = self.target.configure(self.hef, cfg)[0]
@@ -73,8 +87,12 @@ class HailoObjectDetector:
         batch = np.expand_dims(canvas, axis=0)  # (1,640,640,3) uint8
 
         with InferVStreams(self.network_group, self.in_params, self.out_params) as pipe:
-            with self.network_group.activate(self.ng_params):
+            if self.shared:
+                # multi-process service: the scheduler owns activation
                 results = pipe.infer({self.input_name: batch})
+            else:
+                with self.network_group.activate(self.ng_params):
+                    results = pipe.infer({self.input_name: batch})
 
         # HAILO_NMS_BY_CLASS: results[out] -> array(batch) of list[N] of (n,5)
         # arrays, one entry per class in the compiled .hef
